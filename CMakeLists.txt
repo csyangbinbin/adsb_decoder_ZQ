@@ -1,0 +1,7 @@
+project(hfdecoder)
+cmake_minimum_required(VERSION 2.8)
+AUX_SOURCE_DIRECTORY(decoder_src DIR_DECODER_SRCS)
+AUX_SOURCE_DIRECTORY(acars DIR_ACARS_SRCS)
+SET(LIB_SRCS adsb_decoder.cpp adsb_decoder_api.h debug.h stdafx.h)
+ADD_SUBDIRECTORY(HF_ADSB)
+add_library(hfdecoder STATIC ${LIB_SRCS} ${DIR_DECODER_SRCS} ${DIR_ACARS_SRCS})

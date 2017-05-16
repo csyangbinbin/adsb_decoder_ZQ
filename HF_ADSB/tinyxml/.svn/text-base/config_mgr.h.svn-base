@@ -1,0 +1,115 @@
+/********************************************************************
+	created:	2013/11/22
+	created:	22:11:2013   9:17
+	filename: 	
+	file path:	
+	file base:	config_mgr
+	file ext:	h
+	author:		ybb
+	
+	purpose:	程序配置文件信息管理
+*********************************************************************/
+#ifndef __FF_CONFIG_MGR_INCLUDE__
+#define __FF_CONFIG_MGR_INCLUDE__
+
+#include "xml_config.h"
+#include "common/singleton.h"
+
+template<typename T>
+struct cache_value
+{
+	cache_value():bCache(false) , val(T()){}
+	cache_value(T d){bCache=true , val = d ; }
+
+	bool bCache ; 
+	T val ; 
+};
+
+
+#define GET_CFG_VALUE_INT(cache_var , pnode ,node , default_val) \
+{ assert(xml_cfg.IsOpen()) ; \
+	if(cache_var.bCache==true){return cache_var.val ; } \
+	bool ok = false ; \
+	std::string text = GetNodeText(pnode , node , &ok) ; \
+	if(ok){ \
+	cache_var.bCache = true; \
+	cache_var.val	= ConfigManager::Str2Int(text)  ; \
+	return cache_var.val ; } \
+else \
+	return default_val ; }
+
+
+
+#define GET_CFG_VALUE_DOUBLE(cache_var , pnode ,node , default_val) \
+{ assert(xml_cfg.IsOpen()) ; \
+	if(cache_var.bCache==true){return cache_var.val ; } \
+	bool ok = false ; \
+	std::string text = GetNodeText(pnode , node , &ok) ; \
+	if(ok){ \
+	cache_var.bCache = true; \
+	cache_var.val	= ConfigManager::Str2Double(text)  ; \
+	return cache_var.val ; } \
+else \
+	return default_val ; }
+
+
+
+#define  GET_CFG_VALUE_STR(cache_val ,pnode, node , default_val) \
+{ assert(xml_cfg.IsOpen()) ;  \
+	if(cache_val.bCache==true){return cache_val.val ;}\
+	bool ok = false ;\
+	std::string text = GetNodeText(pnode,node , &ok) ;\
+	if(ok){\
+	cache_val.bCache = true; \
+	cache_val.val	= text  ; \
+	return text ; }else return default_val ; }
+
+
+
+#define SET_CFG_VALUE_INT(cache_val ,pnode,node ,value ,save2file) \
+{\
+	assert(xml_cfg.IsOpen()) ;  \
+	cache_val.bCache = true ; \
+	cache_val.val = value ;  \
+	char val_str[50] ; \
+	sprintf_s(val_str , 50 , "%d" ,value ) ; \
+	SetNodeText(pnode, node , val_str , save2file) ;\
+}
+
+
+#define SET_CFG_VALUE_DOUBLE(cache_val ,pnode,node ,value ,save2file) \
+{\
+	assert(xml_cfg.IsOpen()) ;  \
+	cache_val.bCache = true ; \
+	cache_val.val = value ;  \
+	char val_str[50] ; \
+	sprintf_s(val_str , 50 , "%f" ,value ) ; \
+	SetNodeText(pnode, node , val_str , save2file) ;\
+}
+
+
+#define SET_CFG_VALUE_STR(cache_val , pnode  ,node , value  , save2file) \
+{ \
+	assert(xml_cfg.IsOpen()) ;\
+	cache_val.bCache = true ;  \
+	cache_val.val = value ; \
+	SetNodeText(pnode, node  ,value , save2file) ;  \
+}
+
+
+class AppConfig :public boost::noncopyable
+{
+public:
+	AppConfig() ; 
+	bool LoadConfigFile( std::string filename) ; //加载配置文件
+	void Save2File() ;//保存到文件中
+
+protected:
+	std::string  GetNodeText(std::string parent_node_name , std::string node_name ,bool* isOk) ;
+	void         SetNodeText(std::string parent_node_name , std::string node_name , std::string text ,  bool save2file = false ) ; 
+
+protected:
+	ConfigManager xml_cfg ; //xml配置文件解析
+} ;
+
+#endif

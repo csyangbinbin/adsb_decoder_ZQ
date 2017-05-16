@@ -1,0 +1,53 @@
+#include "stdafx.h"
+#include "config_mgr.h"
+#include <cassert>
+
+
+AppConfig::AppConfig()
+{
+}
+
+
+bool AppConfig::LoadConfigFile( std::string filename) 
+{
+	return xml_cfg.LoadConfigFile(filename) ;
+}
+
+std::string  AppConfig::GetNodeText(std::string parent_node_name , std::string node_name ,bool* isOk) 
+{
+	TiXmlElement* ConfigNode =NULL ; 
+	std::string ValueStr ;
+
+	if(!xml_cfg.GetNodePointerByNameFromRoot(parent_node_name , ConfigNode) ) 
+	{
+		*isOk = false ; 
+		return 0 ;
+	}
+	if(!xml_cfg.QueryNode_Text(ConfigNode ,node_name ,ValueStr) )
+	{
+		*isOk = false ; 
+		return std::string() ;
+	}
+
+	*isOk = true ; 
+	return ValueStr ; 
+}
+
+
+
+void   AppConfig::SetNodeText(std::string parent_node_name , std::string node_name ,  std::string text  , bool save2file ) 
+{
+	TiXmlElement* ConfigNode =NULL ; 
+	std::string ValueStr ;
+
+	if(!xml_cfg.GetNodePointerByNameFromRoot(parent_node_name , ConfigNode) )  return ; 
+	xml_cfg.ModifyNode_Text(ConfigNode , node_name , text ) ; 
+	if(save2file)
+		xml_cfg.Save() ;
+	return ; 
+}
+
+void AppConfig::Save2File()
+{
+	xml_cfg.Save() ;
+}

@@ -1,0 +1,64 @@
+/********************************************************************
+created:	2013/07/08
+created:	8:7:2013   15:02
+filename: 	i:\AB3.0\3H_FST\FST\include\xml_config.h
+file path:	i:\AB3.0\3H_FST\FST\include
+file base:	xml_config
+file ext:	h
+author:		ybb
+
+purpose:	XML配置文件读取，存储
+*********************************************************************/
+
+#pragma once
+#include "tinyxml.h"
+#include <windows.h>
+#include <string>
+#include <map>
+#include <WinDef.h>
+
+
+typedef std::map<std::string,std::string> AttrMap ; 
+
+class ConfigManager
+{
+public:
+    ConfigManager(void);
+    ~ConfigManager(void);
+
+public:
+    bool IsOpen() const { return m_pDoc!=NULL ;} //判断配置文件是否打开成功
+    bool LoadConfigFile( std::string filename) ; //加载配置文件
+
+    bool GetNodePointerByNameFromRoot(std::string strNodeName,TiXmlElement* &Node) ;  
+    bool GetNodePointerByName(TiXmlElement* pStartEle,std::string &strNodeName,TiXmlElement* &Node) ;  
+
+    //查询
+    bool QueryNode_Attribute( TiXmlElement *pNode ,AttrMap &AttMap)  ; //查询pNode所对应的节点的属性
+    bool QueryNode_Attribute( TiXmlElement *pNode ,std::string strNodeName , AttrMap &AttMap)  ; //查询pNode节点下名称为strNodeName的子节点的属性
+    bool QueryNode_Text(TiXmlElement *pNode ,std::string &strText) ;//查询pNode所对应的节点的内容
+    bool QueryNode_Text(TiXmlElement *pNode ,std::string strNodeName , std::string &strText) ;//查询pNode节点下名称为strNodeName的子节点的内容
+
+
+    //修改
+    bool ModifyNode_Text(TiXmlElement *pNode ,std::string strText )  ;  //修改pNode所对应的节点的内容
+    bool ModifyNode_Text(TiXmlElement *pNode ,std::string strNodeName ,std::string strText)  ;//修改pNode节点下名称为strNodeName的子节点的内容
+
+    bool ModifyNode_Attribute(TiXmlElement *pNode , AttrMap &AttMap) ;   //修改pNode所对应的节点的属性
+    bool ModifyNode_Attribute(TiXmlElement *pNode ,std::string strNodeName ,AttrMap &AttMap)   ; //修改pNode节点下名称为strNodeName的子节点的属性
+
+    //保存配置文件
+    void Save();
+
+    // XML文件中的字符串值转换成相应的类型
+    static double Str2Double(std::string value);
+    static COLORREF Str2Color(std::string value);
+    static BOOL Str2Bool(std::string value);
+    static int Str2Int(std::string value);
+
+private:
+    TiXmlDocument *m_pDoc  ; 
+    std::string m_XMLFile ; 
+
+};
+

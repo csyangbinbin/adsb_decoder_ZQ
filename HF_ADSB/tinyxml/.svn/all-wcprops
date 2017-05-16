@@ -1,0 +1,65 @@
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/FST/!svn/ver/491/trunk/BaseDecoder/BaseDecoder/common/tinyxml
+END
+tinyxmlerror.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 83
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinyxmlerror.cpp
+END
+config_mgr.h
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/config_mgr.h
+END
+tinystr.h
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinystr.h
+END
+tinyxmlparser.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinyxmlparser.cpp
+END
+tinyxml.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinyxml.cpp
+END
+xml_config.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/xml_config.cpp
+END
+tinyxml.h
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinyxml.h
+END
+config_mgr.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/FST/!svn/ver/491/trunk/BaseDecoder/BaseDecoder/common/tinyxml/config_mgr.cpp
+END
+xml_config.h
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/xml_config.h
+END
+tinystr.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/FST/!svn/ver/489/trunk/BaseDecoder/BaseDecoder/common/tinyxml/tinystr.cpp
+END
