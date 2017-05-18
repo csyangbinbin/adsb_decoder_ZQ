@@ -41,9 +41,7 @@ adsb_decode_result_t
 		return result;
 	else if (ID_DECODE_TYPE == DecodeResult)
 	{
-
 		return 	ProcessID_Pack(info, ADS_B_MSG, timestamp ,ei);
-
 	}
 	else if (SP_DECODE_TYPE == DecodeResult)
 	{
