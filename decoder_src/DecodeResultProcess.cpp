@@ -65,6 +65,10 @@ adsb_decode_result_t
 
 }
 
+static void PackSquawkInfo(adsb_common_info_t* comm_info, unsigned int squawk )
+{
+	comm_info->squawk = squawk; 
+}
 
 static void   PackCommonInfo(adsb_common_info_t* comm_info ,
 	const ADS_Time & timestamp , 
@@ -108,7 +112,7 @@ adsb_decode_result_t
 	result.decode_type = identification_type ; 
 	//填充通用信息
 	PackCommonInfo(&result.id_info_.comm_info ,timestamp ,info->ICAOID , ei);
-	
+	PackSquawkInfo(&result.id_info_.comm_info , info->squawk);
 
 	memcpy(result.id_info_.flight_id, info->IdAndCategory.FlightID, 8);
 
@@ -138,7 +142,7 @@ adsb_decode_result_t ADSB_ResultProcess::ProcessSPLocation_Pack( const AircraftI
 
 	//填充通用信息
 	PackCommonInfo(&result.surface_location_info_.comm_info ,timestamp ,info->ICAOID , ei);
-	
+	PackSquawkInfo(&result.surface_location_info_.comm_info, info->squawk);
 
 	result.surface_location_info_.longitude = info->Location.EvalLon ; 
 	result.surface_location_info_.latitude = info->Location.EvalLat ;
@@ -169,7 +173,7 @@ adsb_decode_result_t
 
 	//填充通用信息
 	PackCommonInfo(&result.air_location_info_.comm_info ,timestamp ,info->ICAOID , ei);
-	
+	PackSquawkInfo(&result.air_location_info_.comm_info, info->squawk);
 
 	result.air_location_info_.longitude = info->Location.EvalLon ;  //经度
 	result.air_location_info_.latitude = info->Location.EvalLat ;	//纬度
@@ -211,7 +215,7 @@ adsb_decode_result_t
 	result.decode_type = velocity_type ;
 	//填充通用信息
 	PackCommonInfo(&result.velocity_info_.comm_info ,timestamp ,info->ICAOID , ei);
-	
+	PackSquawkInfo(&result.velocity_info_.comm_info, info->squawk);
 
 
 	result.velocity_info_.gs_value = info->VelocityState.GS ; 

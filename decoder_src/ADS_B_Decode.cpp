@@ -82,6 +82,337 @@ void SetDecoderHome(DE_HANDLE deHandle ,double lon , double lat)
 		it->second.decoder->set_location(loc) ;
 	}
 }
+int modesMessageLenByType(int type) {
+	return (type & 0x10) ? MODES_LONG_MSG_BITS : MODES_SHORT_MSG_BITS;
+}
+
+
+static inline   unsigned getbit(unsigned char *data, unsigned bitnum)
+{
+	unsigned bi = bitnum - 1;
+	unsigned by = bi >> 3;
+	unsigned mask = 1 << (7 - (bi & 7));
+
+	return (data[by] & mask) != 0;
+}
+
+// Extract some bits (firstbit .. lastbit inclusive) from a message.
+static inline   unsigned getbits(unsigned char *data, unsigned firstbit, unsigned lastbit)
+{
+	unsigned fbi = firstbit - 1;
+	unsigned lbi = lastbit - 1;
+	unsigned nbi = (lastbit - firstbit + 1);
+
+	unsigned fby = fbi >> 3;
+	unsigned lby = lbi >> 3;
+	unsigned nby = (lby - fby) + 1;
+
+	unsigned shift = 7 - (lbi & 7);
+	unsigned topmask = 0xFF >> (fbi & 7);
+
+	assert(fbi <= lbi);
+	assert(nbi <= 32);
+	assert(nby <= 5);
+
+	if (nby == 5) {
+		return
+			((data[fby] & topmask) << (32 - shift)) |
+			(data[fby + 1] << (24 - shift)) |
+			(data[fby + 2] << (16 - shift)) |
+			(data[fby + 3] << (8 - shift)) |
+			(data[fby + 4] >> shift);
+	}
+	else if (nby == 4) {
+		return
+			((data[fby] & topmask) << (24 - shift)) |
+			(data[fby + 1] << (16 - shift)) |
+			(data[fby + 2] << (8 - shift)) |
+			(data[fby + 3] >> shift);
+	}
+	else if (nby == 3) {
+		return
+			((data[fby] & topmask) << (16 - shift)) |
+			(data[fby + 1] << (8 - shift)) |
+			(data[fby + 2] >> shift);
+	}
+	else if (nby == 2) {
+		return
+			((data[fby] & topmask) << (8 - shift)) |
+			(data[fby + 1] >> shift);
+	}
+	else if (nby == 1) {
+		return
+			(data[fby] & topmask) >> shift;
+	}
+	else {
+		return 0;
+	}
+}
+int icaoFilterTest(uint32_t addr, DE_HANDLE deHandle)
+{
+
+	rwmutex* mutex = GetRWMutex(deHandle);
+	Write_Lock(mutex); //写锁定
+
+	LPDBType pDB = H2P(deHandle);
+	ICAOAddress  ICAO = ICAOAddress((addr >> 16) & 0x000000FF, (addr >> 8) & 0x000000FF, addr & 0x000000FF);
+
+	BOOL isExist = IsExistICAO(deHandle, ICAO); 
+	return  isExist ? 1 : 0; 
+}
+
+
+#define INVALID_ALTITUDE (-9999)
+
+int decodeID13Field(int ID13Field) {
+	int hexGillham = 0;
+
+	if (ID13Field & 0x1000) { hexGillham |= 0x0010; } // Bit 12 = C1
+	if (ID13Field & 0x0800) { hexGillham |= 0x1000; } // Bit 11 = A1
+	if (ID13Field & 0x0400) { hexGillham |= 0x0020; } // Bit 10 = C2
+	if (ID13Field & 0x0200) { hexGillham |= 0x2000; } // Bit  9 = A2
+	if (ID13Field & 0x0100) { hexGillham |= 0x0040; } // Bit  8 = C4
+	if (ID13Field & 0x0080) { hexGillham |= 0x4000; } // Bit  7 = A4
+													  //if (ID13Field & 0x0040) {hexGillham |= 0x0800;} // Bit  6 = X  or M 
+	if (ID13Field & 0x0020) { hexGillham |= 0x0100; } // Bit  5 = B1 
+	if (ID13Field & 0x0010) { hexGillham |= 0x0001; } // Bit  4 = D1 or Q
+	if (ID13Field & 0x0008) { hexGillham |= 0x0200; } // Bit  3 = B2
+	if (ID13Field & 0x0004) { hexGillham |= 0x0002; } // Bit  2 = D2
+	if (ID13Field & 0x0002) { hexGillham |= 0x0400; } // Bit  1 = B4
+	if (ID13Field & 0x0001) { hexGillham |= 0x0004; } // Bit  0 = D4
+
+	return (hexGillham);
+}
+
+int ModeAToModeC(unsigned int ModeA)
+{
+	unsigned int FiveHundreds = 0;
+	unsigned int OneHundreds = 0;
+
+	if ((ModeA & 0xFFFF8889) != 0 ||         // check zero bits are zero, D1 set is illegal
+		(ModeA & 0x000000F0) == 0) { // C1,,C4 cannot be Zero
+		return INVALID_ALTITUDE;
+	}
+
+	if (ModeA & 0x0010) { OneHundreds ^= 0x007; } // C1
+	if (ModeA & 0x0020) { OneHundreds ^= 0x003; } // C2
+	if (ModeA & 0x0040) { OneHundreds ^= 0x001; } // C4
+
+												  // Remove 7s from OneHundreds (Make 7->5, snd 5->7). 
+	if ((OneHundreds & 5) == 5) { OneHundreds ^= 2; }
+
+	// Check for invalid codes, only 1 to 5 are valid 
+	if (OneHundreds > 5) {
+		return INVALID_ALTITUDE;
+	}
+
+	//if (ModeA & 0x0001) {FiveHundreds ^= 0x1FF;} // D1 never used for altitude
+	if (ModeA & 0x0002) { FiveHundreds ^= 0x0FF; } // D2
+	if (ModeA & 0x0004) { FiveHundreds ^= 0x07F; } // D4
+
+	if (ModeA & 0x1000) { FiveHundreds ^= 0x03F; } // A1
+	if (ModeA & 0x2000) { FiveHundreds ^= 0x01F; } // A2
+	if (ModeA & 0x4000) { FiveHundreds ^= 0x00F; } // A4
+
+	if (ModeA & 0x0100) { FiveHundreds ^= 0x007; } // B1 
+	if (ModeA & 0x0200) { FiveHundreds ^= 0x003; } // B2
+	if (ModeA & 0x0400) { FiveHundreds ^= 0x001; } // B4
+
+												   // Correct order of OneHundreds. 
+	if (FiveHundreds & 1) { OneHundreds = 6 - OneHundreds; }
+
+	return ((FiveHundreds * 5) + OneHundreds - 13);
+}
+
+typedef enum {
+	UNIT_FEET,
+	UNIT_METERS
+} altitude_unit_t;
+
+static int decodeAC13Field(int AC13Field, altitude_unit_t *unit) {
+	int m_bit = AC13Field & 0x0040; // set = meters, clear = feet
+	int q_bit = AC13Field & 0x0010; // set = 25 ft encoding, clear = Gillham Mode C encoding
+
+	if (!m_bit) {
+		*unit = UNIT_FEET;
+		if (q_bit) {
+			// N is the 11 bit integer resulting from the removal of bit Q and M
+			int n = ((AC13Field & 0x1F80) >> 2) |
+				((AC13Field & 0x0020) >> 1) |
+				(AC13Field & 0x000F);
+			// The final altitude is resulting number multiplied by 25, minus 1000.
+			return ((n * 25) - 1000);
+		}
+		else {
+			// N is an 11 bit Gillham coded altitude
+			int n = ModeAToModeC(decodeID13Field(AC13Field));
+			if (n < -12) {
+				return INVALID_ALTITUDE;
+			}
+
+			return (100 * n);
+		}
+	}
+	else {
+		*unit = UNIT_METERS;
+		// TODO: Implement altitude when meter unit is selected
+		return INVALID_ALTITUDE;
+	}
+}
+
+BOOL  DecodeAllReplay(DE_HANDLE deHandle,  // [IN] 解码器句柄
+	BYTE msg[14], // [IN] ADS消息报文
+	ADS_Time Time       // [IN] 报文接收时间
+)
+{
+	unsigned int msgtype = getbits(msg, 1, 5); // Downlink Format
+	unsigned int msgbits = modesMessageLenByType(msgtype);
+	unsigned int crc = modesChecksum(msg, msgbits);
+
+	int addr = 0 ;
+	unsigned int IID = crc & 0x7f;
+	if (crc & 0xffff80) {
+		
+		struct errorinfo *ei = modesChecksumDiagnose(crc & 0xffff80, msgbits);
+		if (!ei) {
+			return -2; // couldn't fix it
+		}
+
+		// see crc.c comments: we do not attempt to fix
+		// more than single-bit errors, as two-bit
+		// errors are ambiguous in DF11.
+		if (ei->errors > 1)
+			return -2; // can't correct errors
+
+	int 	correctedbits = ei->errors;
+	if (correctedbits == 0)
+		modesChecksumFix(msg, ei);
+
+		// check whether the corrected message looks sensible
+		// we are conservative here: only accept corrected messages that
+		// match an existing aircraft.
+		addr = getbits(msg, 9, 32);
+		if (!icaoFilterTest(addr , deHandle)) {
+			return -1;
+		}
+	}
+
+	if (IID == 0)
+	{
+		addr = getbits(msg, 9, 32);
+		icaoFilterAdd(deHandle , Time	 , addr);
+
+	//	printf("************************************************   %06X\r\n" , addr );
+	}
+
+
+	return TRUE;
+
+}
+
+BOOL DecodeAltitudeReplay(DE_HANDLE deHandle,  // [IN] 解码器句柄
+	BYTE msg[14], // [IN] ADS消息报文
+	ADS_Time Time       // [IN] 报文接收时间
+)
+{
+	unsigned int msgtype = getbits(msg, 1, 5); // Downlink Format
+unsigned int msgbits = modesMessageLenByType(msgtype);
+unsigned int crc = modesChecksum(msg,msgbits);
+
+if (!icaoFilterTest(crc, deHandle)) {
+	return FALSE;
+}
+
+unsigned int addr = crc; //ICAO 
+
+unsigned int AC = getbits(msg, 20, 32);
+altitude_unit_t altitude_unit = UNIT_FEET;
+int altitude_valid = 0;
+int altitude = 0;
+
+if (AC) { // Only attempt to decode if a valid (non zero) altitude is present
+	altitude = decodeAC13Field(AC, &altitude_unit);
+	if (altitude != INVALID_ALTITUDE)
+		altitude_valid = 1;
+
+
+	LPDBType pDB = H2P(deHandle);
+	ICAOAddress  ICAO = ICAOAddress((addr >> 16) & 0x000000FF, (addr >> 8) & 0x000000FF, addr & 0x000000FF);
+	DBPointer IT = pDB->find(ICAO);
+	if (IT == pDB->end())
+		return FALSE;
+
+	AircraftInfo* InfoPointer = &(IT->second);
+
+
+	InfoPointer->AltitudeReplay.altitude_valid = altitude_valid;
+	InfoPointer->AltitudeReplay.altitude = altitude;
+	InfoPointer->AltitudeReplay.altitude_unit = altitude_unit == UNIT_FEET ? 0 : 1;
+
+	//printf("############   %06X   %d\r\n", addr, altitude);
+	return TRUE;
+}
+else
+return FALSE;
+
+}
+
+
+
+BOOL  DecodeSquawk(DE_HANDLE deHandle,  // [IN] 解码器句柄
+	BYTE msg[14], // [IN] ADS消息报文
+	ADS_Time Time       // [IN] 报文接收时间
+)
+{
+	unsigned int msgtype = getbits(msg, 1, 5); // Downlink Format
+	unsigned int msgbits = modesMessageLenByType(msgtype);
+	unsigned int crc = modesChecksum(msg,msgbits);
+
+
+	if (!icaoFilterTest(crc , deHandle)) {
+		return FALSE ;
+	}
+
+	unsigned int addr = crc; //ICAO 
+
+	LPDBType pDB = H2P(deHandle);
+	ICAOAddress  ICAO = ICAOAddress((addr >> 16) & 0x000000FF, (addr >> 8) & 0x000000FF, addr & 0x000000FF);
+	DBPointer IT = pDB->find(ICAO);
+	if (IT == pDB->end())
+		return FALSE ; 
+
+	AircraftInfo* InfoPointer = &(IT->second);
+
+	//int ID13Field = ((msg[2] <<8) | msg[3]) & 0x1FFF;
+	unsigned int ID = getbits(msg, 20, 32);
+	if (ID) {
+		unsigned int squawk = decodeID13Field(ID);
+
+		InfoPointer->squawk = squawk;
+
+		unsigned int identity = 0;
+		{
+			int a, b, c, d;
+
+			a = ((msg[3] & 0x80) >> 5) |
+				((msg[2] & 0x02) >> 0) |
+				((msg[2] & 0x08) >> 3);
+			b = ((msg[3] & 0x02) << 1) |
+				((msg[3] & 0x08) >> 2) |
+				((msg[3] & 0x20) >> 5);
+			c = ((msg[2] & 0x01) << 2) |
+				((msg[2] & 0x04) >> 1) |
+				((msg[2] & 0x10) >> 4);
+			d = ((msg[3] & 0x01) << 2) |
+				((msg[3] & 0x04) >> 1) |
+				((msg[3] & 0x10) >> 4);
+			identity = a * 1000 + b * 100 + c * 10 + d;
+		}
+		return TRUE;
+	}
+	else
+		return FALSE; 
+}
 
 
 
@@ -933,17 +1264,41 @@ double GetMovement(BYTE MovementByte)
 }
 
 
-//////////////////////////////////////////////////////////////////////////朴素的分割线
 BOOL DecodeADSMessage(DE_HANDLE deHandle ,  // [IN] 解码器句柄
 	BYTE AdsMessage[14], // [IN] ADS消息报文
 	ADS_Time Time       // [IN] 报文接收时间
 	)
 {
 
-	BYTE DF_Code = (AdsMessage[0]>>3)&0x1F;   //目前只处理DF = 17 ,18 的消息类型
-	if(DF_Code!=17 &&DF_Code!=18 )  return FALSE ;
+	BYTE DF_Code = (AdsMessage[0]>>3)&0x1F; 
 
-	if(DF_Code==17){
+	bool isShort = false;
+	if (AdsMessage[7] == 0 && AdsMessage[8] == 0 && AdsMessage[9] == 0)
+		isShort = true;
+
+	if (DF_Code == 4 || DF_Code == 20 && isShort)
+	{
+	//	return DecodeAltitudeReplay(deHandle, AdsMessage, Time);
+		return FALSE ;
+	}
+	else if (DF_Code == 11 && isShort)
+	{
+	return   DecodeAllReplay(deHandle, AdsMessage, Time);
+	}
+	else if (DF_Code==5 || DF_Code==21 && isShort)
+	{
+	return  	DecodeSquawk(deHandle, AdsMessage, Time);
+	}
+	else if(DF_Code==17 && isShort ==false	){
+
+		if (isShort)
+			return FALSE; 
+
+		DWORD a = CRC24(AdsMessage , 14);
+
+		uint32_t crc = modesChecksum(AdsMessage ,112);
+		if (crc)
+			return FALSE; 
 
 		BYTE Code_Type = (AdsMessage[4]>>3)&0x1F; //消息类型
 		switch(Code_Type)
@@ -1003,7 +1358,7 @@ BOOL DecodeADSMessage(DE_HANDLE deHandle ,  // [IN] 解码器句柄
 			return FALSE ; 
 		}
 	}
-	else if( (DF_Code==18) &&( (AdsMessage[0]&0x01)==1 ))
+	else if( isShort==false && (DF_Code==18) &&( (AdsMessage[0]&0x01)==1 ))
 	{
 		return 	DecodeSurfacePostion(deHandle ,AdsMessage ,Time ) ; 
 	}
@@ -1012,7 +1367,6 @@ BOOL DecodeADSMessage(DE_HANDLE deHandle ,  // [IN] 解码器句柄
 
 
 }
-
 
 double real_lat(double lat , double home_lat)
 {

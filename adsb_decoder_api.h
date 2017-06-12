@@ -64,6 +64,7 @@ extern "C"
 		adsb_icao_addr_tag  icao_addr;		///< ICAO地址
 		adsb_timestamp_t	timestamp;		///< 时间戳
 		unsigned short		station_id;		///< 接收机编号
+		unsigned int		squawk;			///< 应答机编号
 	} adsb_common_info_t;
 
 	/**
