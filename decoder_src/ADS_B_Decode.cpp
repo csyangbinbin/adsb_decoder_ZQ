@@ -8,6 +8,7 @@
 #include <cassert>
 #include "cpr.h"
 #include "ads_altitude.h"
+#include "crc.h"
 
 #ifndef ADSB_DECODER_NO_LOCK
 typedef boost::shared_mutex rwmutex ; 
@@ -30,7 +31,12 @@ typedef DBType::iterator DBPointer ;
 typedef DBType::const_iterator ConstDBPointer ;
 
 #define H2P(n) static_cast<LPDBType>(n)
+#define MODES_LONG_MSG_BYTES     14
+#define MODES_SHORT_MSG_BYTES    7
+#define MODES_LONG_MSG_BITS     (MODES_LONG_MSG_BYTES    * 8)
+#define MODES_SHORT_MSG_BITS    (MODES_SHORT_MSG_BYTES   * 8)
 
+typedef unsigned int uint32_t ; 
 
 typedef  struct decoder_contex
 {

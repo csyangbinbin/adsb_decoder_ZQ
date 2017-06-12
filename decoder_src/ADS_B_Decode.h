@@ -84,6 +84,12 @@ typedef struct TagADS_Time
 	unsigned long tv_nsec; /*纳秒*/
 }ADS_Time ; 
 
+typedef struct AltitudeReplayInfo
+{
+		int altitude_valid;
+		int altitude; 
+		int altitude_unit;
+}AltitudeReplayInfo;
 
 /**/
 /*
@@ -268,7 +274,8 @@ typedef struct AircraftInfo
 	ADS_Time                   LocationLastUpdateTime ;    //位置信息最后的更新时间
 	ADS_Time                   InfoLastUpdateTime ;        //收到关于此飞行器的数据的最后时间
 	BOOL                       bTimeOut;                   //飞行器目标超时(长时间未收到此目标的任何信息)
-
+	unsigned int			   squawk;						//应答机编号
+	AltitudeReplayInfo		   AltitudeReplay;				//高度应答回复
 }AircraftInfo,*PAircraftInfo ; 
 
 
