@@ -47,7 +47,7 @@ typedef  struct decoder_contex
 
 std::map<DE_HANDLE,decoder_contex> DecoderContex ; 
 BOOL IsExistICAO(DE_HANDLE deHandle , ICAOAddress ICAO) ; 
-
+void  icaoFilterAdd(DE_HANDLE deHandle, ADS_Time Time, uint32_t addr) ; 
 
 ads_cpr_decode_param get_ads_cpr_param(BYTE ads_msg[14])
 {
