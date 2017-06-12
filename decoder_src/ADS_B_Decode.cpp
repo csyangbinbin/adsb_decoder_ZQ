@@ -1,7 +1,7 @@
+#define  ADSB_DECODER_NO_LOCK
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define  ADSB_DECODER_NO_LOCK
 #include "ADS_B_Decode.h"
 #include <map>
 #include <math.h>
@@ -9,6 +9,7 @@
 #include "cpr.h"
 #include "ads_altitude.h"
 #include "crc.h"
+#include "utility.h"
 
 #ifndef ADSB_DECODER_NO_LOCK
 typedef boost::shared_mutex rwmutex ; 
@@ -45,7 +46,7 @@ typedef  struct decoder_contex
 }decoder_contex ;
 
 std::map<DE_HANDLE,decoder_contex> DecoderContex ; 
-
+BOOL IsExistICAO(DE_HANDLE deHandle , ICAOAddress ICAO) ; 
 
 
 ads_cpr_decode_param get_ads_cpr_param(BYTE ads_msg[14])
@@ -77,6 +78,20 @@ ads_cpr_decode_param get_ads_cpr_param(BYTE ads_msg[14])
 
 }
 
+rwmutex* GetRWMutex(DE_HANDLE deHandle)
+{
+#ifdef ADSB_DECODER_NO_LOCK
+	return NULL ; 
+#else
+	std::map<DE_HANDLE,decoder_contex> ::iterator it = DecoderContex.find(deHandle) ;
+	if(it==DecoderContex.end())
+		return NULL ;
+	else 
+		return it->second.mutex; 
+#endif
+
+}
+
 void SetDecoderHome(DE_HANDLE deHandle ,double lon , double lat)
 {
 	std::map<DE_HANDLE,decoder_contex> ::iterator it = DecoderContex.find(deHandle) ;
@@ -88,6 +103,9 @@ void SetDecoderHome(DE_HANDLE deHandle ,double lon , double lat)
 		it->second.decoder->set_location(loc) ;
 	}
 }
+
+
+
 int modesMessageLenByType(int type) {
 	return (type & 0x10) ? MODES_LONG_MSG_BITS : MODES_SHORT_MSG_BITS;
 }
@@ -460,19 +478,7 @@ cpr_decoder* get_decoder(DE_HANDLE deHandle)
 		return it->second.decoder; 
 }
 
-rwmutex* GetRWMutex(DE_HANDLE deHandle)
-{
-#ifdef ADSB_DECODER_NO_LOCK
-	return NULL ; 
-#else
-	std::map<DE_HANDLE,decoder_contex> ::iterator it = DecoderContex.find(deHandle) ;
-	if(it==DecoderContex.end())
-		return NULL ;
-	else 
-		return it->second.mutex; 
-#endif
 
-}
 
 BOOL IsExistICAO(DE_HANDLE deHandle , ICAOAddress ICAO)
 {
@@ -530,7 +536,19 @@ void AddEntry(DE_HANDLE deHandle , ICAOAddress ICAO ,const AircraftInfo& Info)
 	LPDBType pDB = H2P(deHandle) ; 
 	pDB->insert(std::pair<ICAOAddress,AircraftInfo>(ICAO , Info)) ; 
 }
+void  icaoFilterAdd(DE_HANDLE deHandle, ADS_Time Time, uint32_t addr)
+{
+	LPDBType pDB = H2P(deHandle);
+	ICAOAddress  ICAO = ICAOAddress((addr >> 16) & 0x000000FF, (addr >> 8) & 0x000000FF, addr & 0x000000FF);
+	DBPointer IT = pDB->find(ICAO);
+	if (IT != pDB->end())
+		return;
 
+	AircraftInfo Info;
+	InitAircraftEntry(deHandle, ICAO, Time, &Info);
+	AddEntry(deHandle, ICAO, Info);
+
+}
 
 //返回指定ICAO目标的信息
 AircraftInfo* GetAircraftInfo(DE_HANDLE deHandle , ICAOAddress ICAO)
