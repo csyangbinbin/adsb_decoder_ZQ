@@ -154,22 +154,22 @@ void process_recv_data(char* data, size_t data_size)
 	switch (ret.decode_type)
 	{
 	case decode_error_type:
-		on_error_type(&ret); //错误的数据报文
+//		on_error_type(&ret); //错误的数据报文
 		break;
 	case air_location_type:
-		on_air_location_type(&ret); //空中位置信息报文
+//		on_air_location_type(&ret); //空中位置信息报文
 		break;
 	case surface_location_type:
-		on_surface_location_type(&ret); //地面位置信息报文
+//		on_surface_location_type(&ret); //地面位置信息报文
 		break;
 	case identification_type:
 		on_identification_type(&ret); //航班号信息报文
 		break;
 	case velocity_type:
-		on_velocity_type(&ret); //速度信息报文
+//		on_velocity_type(&ret); //速度信息报文
 		break;
 	case dev_board_info_type:
-		on_dev_board_info_type(&ret);//接收机状态信息报文
+//		on_dev_board_info_type(&ret);//接收机状态信息报文
 		break;
 	}
 
